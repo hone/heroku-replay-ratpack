@@ -1,24 +1,14 @@
 require 'java'
 require 'jruby/core_ext'
 require 'stringio'
+require 'json'
 require 'bundler/setup'
 Bundler.require
 
 Dotenv.load
 
 java_import 'ratpack.server.RatpackServer'
-
-java_import 'ratpack.registry.Registry'
 java_import 'ratpack.exec.Blocking'
-java_import 'ratpack.stream.Streams'
-java_import 'ratpack.http.ResponseChunks'
-java_import 'java.time.Duration'
-
-producer = Kafka::KafkaProducer.new({
-  bootstrap_servers: "#{ENV['KAFKA_HOST']}:#{ENV['KAFKA_PORT']}",
-  key_serializer:    "org.apache.kafka.common.serialization.StringSerializer",
-  value_serializer:  "org.apache.kafka.common.serialization.StringSerializer "
-})
 
 RatpackServer.start do |b|
   b.handlers do |chain|
@@ -27,31 +17,33 @@ RatpackServer.start do |b|
     end
 
     chain.get("kafka") do |ctx|
-      consumer = Kafka::KafkaConsumer.new({
-        bootstrap_servers:  "#{ENV['KAFKA_HOST']}:#{ENV['KAFKA_PORT']}",
-        key_deserializer:   "org.apache.kafka.common.serialization.StringDeserializer",
-        value_deserializer: "org.apache.kafka.common.serialization.StringDeserializer ",
-        group_id: "ratpack2",
-        enable_auto_commit: "false",
-        auto_offset_reset:  "earliest"
-      })
+      consumer = Kafka.new(kafka_options).consumer(group_id: "ratpack")
+      consumer.subscribe("routes")
 
-      consumer.subscribe(java.util.Arrays.as_list("test", "slug"))
-      consumer.assign([partition])
-      consumer.seek_to_beginning(partition)
-      records = consumer.poll(0)
-      records.each do |record|
-        puts record.to_string
+      Blocking.get do
+        messages = nil
+
+        consumer.each_batch(max_wait_time: 1) do |batch|
+          consumer.stop
+          messages = batch.messages
+          puts "Hello Bro"
+          messages.each do |message|
+            puts message.inspect
+          end
+        end
+
+        messages || []
+      end.then do |messages|
+        ctx.render("Messages: #{messages.size}")
       end
 
-      ctx.render("List Topics: #{consumer.list_topics}\nRecords: #{records.count}")
+      consumer.stop
     end
 
-    chain.post("logs") do |ctx|
+    chain.post("process") do |ctx|
       request = ctx.get_request
       message_count = request.get_headers.get("Logplex-Msg-Count")
       request.get_body.then do |body|
-        parser = Syslog::Parser.new(allow_missing_structured_data: true)
         puts "Logplex Message Count: #{message_count}"
         messages = []
         begin
@@ -64,18 +56,52 @@ RatpackServer.start do |b|
           $stderr.puts "Could not parse: #{body.get_text}"
         end
 
+        producer = Kafka.new(kafka_options).async_producer
         messages.each do |message|
-          puts "MSG: #{message}"
+          producer.produce(message.to_json, topic: "routes")
         end
 
-        #producer.connect
-        #producer.send_msg("test", 0, nil, message.inspect)
-        #producer.producer.flush
+        producer.deliver_messages
+        producer.shutdown
       end
 
       response = ctx.get_response
       response.status(202)
-      response.send("Success")
+      response.send("Accepted")
+    end
+
+    chain.post("logs") do |ctx|
+      request  = ctx.get_request
+      response = ctx.get_response
+      message_count = request.get_headers.get("Logplex-Msg-Count")
+      request.get_body.then do |body|
+        puts "Logplex Message Count: #{message_count}"
+        puts body.get_text
+        response.send("Success")
+      end
+
+      response.status(200)
     end
   end
+end
+
+private
+def ssl_options
+  if ENV['KAFKA_CLIENT_CERT'] &&
+      ENV['KAFKA_CLIENT_CERT_KEY'] &&
+      ENV['KAFKA_TRUSTED_CERT']
+    {
+      ssl_client_cert:      ENV['KAFKA_CLIENT_CERT'],
+      ssl_client_cert_key:  ENV['KAFKA_CLIENT_CERT_KEY'],
+      ssl_ca_cert:          ENV['KAFKA_TRUSTED_CERT']
+    }
+  else
+    {}
+  end
+end
+
+def kafka_options
+  {
+    seed_brokers: ENV['KAFKA_URL']
+  }.merge(ssl_options)
 end
