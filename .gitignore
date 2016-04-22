@@ -3,3 +3,5 @@
 .jbundler/
 bin/
 vendor/
+.bash_history
+.m2
