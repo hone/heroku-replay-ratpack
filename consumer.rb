@@ -1,9 +1,6 @@
 require 'json'
 require 'bundler/setup'
 require 'kafka'
-require 'dotenv'
-
-Dotenv.load
 
 def ssl_options
   if ENV['KAFKA_CLIENT_CERT'] &&

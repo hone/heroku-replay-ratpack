@@ -1,5 +1,4 @@
 .bundle/
-.env
 .jbundler/
 bin/
 vendor/

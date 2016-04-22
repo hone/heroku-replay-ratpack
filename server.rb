@@ -5,8 +5,6 @@ require 'json'
 require 'bundler/setup'
 Bundler.require
 
-Dotenv.load
-
 java_import 'ratpack.server.RatpackServer'
 java_import 'ratpack.exec.Blocking'
 

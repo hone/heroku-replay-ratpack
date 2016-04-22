@@ -24,6 +24,7 @@ services:
     depends_on:
       - redis
       - kafka
+    env_file: .env
   shell:
     build: .
     volumes:
