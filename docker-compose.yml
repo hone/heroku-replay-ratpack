@@ -1,0 +1,33 @@
+version: '2'
+services:
+  redis:
+    image: redis:3.0-alpine
+  zookeeper:
+    image: hone/kafka:2.11
+    expose:
+      - "2181"
+    command: /opt/kafka_2.11-0.9.0.1/bin/zookeeper-server-start.sh /opt/kafka_2.11-0.9.0.1/config/zookeeper.properties
+  kafka:
+    image: hone/kafka:2.11
+    links:
+      - zookeeper
+    expose:
+      - "9092"
+    command: /home/kafka/bin/kafka-env-start.sh
+  web:
+    build: .
+    command: ruby /app/server.rb
+    volumes:
+      - .:/app/
+    ports:
+      - "5050:5050"
+    depends_on:
+      - redis
+      - kafka
+  shell:
+    build: .
+    volumes:
+      - .:/app/
+    command: bash
+    depends_on:
+      - web
