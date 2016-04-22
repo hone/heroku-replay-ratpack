@@ -18,7 +18,7 @@ RatpackServer.start do |b|
 
     chain.get("kafka") do |ctx|
       consumer = Kafka.new(kafka_options).consumer(group_id: "ratpack")
-      consumer.subscribe("routes")
+      consumer.subscribe("router")
 
       Blocking.get do
         messages = nil
@@ -58,7 +58,7 @@ RatpackServer.start do |b|
 
         producer = Kafka.new(kafka_options).async_producer
         messages.each do |message|
-          producer.produce(message.to_json, topic: "routes")
+          producer.produce(message.to_h.to_json, topic: message.procid) if message.procid == "router"
         end
 
         producer.deliver_messages
