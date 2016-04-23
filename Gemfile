@@ -6,3 +6,4 @@ gem "syslog-parser",  github: "hone/syslog-parser", branch: "jruby", require: "s
 gem "syslog-stream"
 gem "jbundler",       '0.9.2'
 gem "ruby-kafka", require: "kafka"
+gem "redis"
