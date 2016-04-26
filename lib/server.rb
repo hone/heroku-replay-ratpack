@@ -16,8 +16,8 @@ java_import 'ratpack.exec.Blocking'
 java_import 'ratpack.exec.Execution'
 
 $kafka_pools = {
-  producer: ConnectionPool.new(size: 20, timeout: 5) { Kafka.new(KafkaOptions.default).async_producer },
-  consumer: ConnectionPool.new(size: 5, timetou: 5) { Kafka.new(KafkaOptions.default).consumer(group_id: "ratpack") }
+  producer: ConnectionPool.new(size: 5, timeout: 5) { Kafka.new(KafkaOptions.default).async_producer },
+  consumer: ConnectionPool.new(size: 5, timeout: 5) { Kafka.new(KafkaOptions.default).consumer(group_id: "ratpack") }
 }
 
 RatpackServer.start do |b|
@@ -28,7 +28,6 @@ RatpackServer.start do |b|
 
     chain.get("kafka") do |ctx|
       $kafka_pools[:consumer].with do |consumer|
-        consumer = kafka_consumer_pool
         consumer.subscribe("router")
 
         Blocking.get do
@@ -51,12 +50,10 @@ RatpackServer.start do |b|
     end
 
     chain.post("process") do |ctx|
-      request = ctx.get_request
-      request.get_body.then do |body|
-        #messages = process_messages(body.get_text)
-        Execution.current.fork.start do
-          messages = process_messages(body.get_text)
-          deliver_messages(messages)
+      ctx.request.get_body.then do |body|
+        text = body.get_text
+        Execution.fork.start do
+          process_messages(text)
         end
         ctx.get_response.status(202).send("Accepted")
       end
@@ -88,16 +85,11 @@ def process_messages(body_text)
   rescue Syslog::Parser::Error
     $stderr.puts "Could not parse: #{body_text}"
   end
-  messages
-end
 
-def deliver_messages(messages)
   $kafka_pools[:producer].with do |producer|
-    producer = Kafka.new(KafkaOptions.default).async_producer
     messages.each do |message|
       producer.produce(message.to_h.to_json, topic: message.procid) if message.procid == "router"
     end
-
     producer.deliver_messages
   end
 end
