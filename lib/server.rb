@@ -53,11 +53,11 @@ RatpackServer.start do |b|
       request = ctx.get_request
       request.get_body.then do |body|
         process_messages(body.get_text)
-      end
 
-      response = ctx.get_response
-      response.status(202)
-      ctx.render("Accepted")
+        response = ctx.get_response
+        response.status(202)
+        ctx.render("Accepted")
+      end
     end
 
     chain.post("logs") do |ctx|
