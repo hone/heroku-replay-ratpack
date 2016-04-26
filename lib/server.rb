@@ -3,19 +3,25 @@ require 'jruby/core_ext'
 require 'stringio'
 require 'json'
 require 'bundler/setup'
-Bundler.require
+require 'jbundler'
+require 'syslog/parser'
+require 'syslog/stream'
+require 'kafka'
+
+require_relative 'kafka_options'
 
 java_import 'ratpack.server.RatpackServer'
 java_import 'ratpack.exec.Blocking'
 
 RatpackServer.start do |b|
+
   b.handlers do |chain|
     chain.get do |ctx|
       ctx.render("Hello from Ratpack JRuby")
     end
 
     chain.get("kafka") do |ctx|
-      consumer = Kafka.new(kafka_options).consumer(group_id: "ratpack")
+      consumer = Kafka.new(KafkaOptions.default).consumer(group_id: "ratpack")
       consumer.subscribe("router")
 
       Blocking.get do
@@ -54,8 +60,9 @@ RatpackServer.start do |b|
           $stderr.puts "Could not parse: #{body.get_text}"
         end
 
-        producer = Kafka.new(kafka_options).async_producer
+        producer = Kafka.new(KafkaOptions.default).async_producer
         messages.each do |message|
+          puts message
           producer.produce(message.to_h.to_json, topic: message.procid) if message.procid == "router"
         end
 
@@ -81,25 +88,4 @@ RatpackServer.start do |b|
       response.status(200)
     end
   end
-end
-
-private
-def ssl_options
-  if ENV['KAFKA_CLIENT_CERT'] &&
-      ENV['KAFKA_CLIENT_CERT_KEY'] &&
-      ENV['KAFKA_TRUSTED_CERT']
-    {
-      ssl_client_cert:      ENV['KAFKA_CLIENT_CERT'],
-      ssl_client_cert_key:  ENV['KAFKA_CLIENT_CERT_KEY'],
-      ssl_ca_cert:          ENV['KAFKA_TRUSTED_CERT']
-    }
-  else
-    {}
-  end
-end
-
-def kafka_options
-  {
-    seed_brokers: ENV['KAFKA_URL']
-  }.merge(ssl_options)
 end

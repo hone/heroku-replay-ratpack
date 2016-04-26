@@ -16,7 +16,7 @@ services:
     command: /home/kafka/bin/kafka-env-start.sh
   web:
     build: .
-    command: ruby /app/server.rb
+    command: ruby /app/lib/server.rb
     volumes:
       - .:/app/
     ports:

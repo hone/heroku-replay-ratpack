@@ -7,3 +7,8 @@ gem "syslog-stream"
 gem "jbundler",       '0.9.2'
 gem "ruby-kafka", require: "kafka"
 gem "redis"
+gem "concurrent-ruby", require: "concurrent"
+
+group :test do
+  gem "rspec"
+end
