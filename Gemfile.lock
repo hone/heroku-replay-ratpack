@@ -17,6 +17,7 @@ GEM
     coercible (1.0.0)
       descendants_tracker (~> 0.0.1)
     concurrent-ruby (1.0.1-java)
+    connection_pool (2.2.0)
     descendants_tracker (0.0.4)
       thread_safe (~> 0.3, >= 0.3.1)
     diff-lcs (1.2.5)
@@ -64,6 +65,7 @@ PLATFORMS
 
 DEPENDENCIES
   concurrent-ruby
+  connection_pool
   jbundler (= 0.9.2)
   redis
   rspec
