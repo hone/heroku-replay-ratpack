@@ -79,7 +79,7 @@ def process_messages(body_text)
     )
     messages = stream.messages.to_a
   rescue Syslog::Parser::Error
-    $stderr.puts "Could not parse: #{body.get_text}"
+    $stderr.puts "Could not parse: #{body_text}"
   end
 
   producer = Kafka.new(KafkaOptions.default).async_producer
