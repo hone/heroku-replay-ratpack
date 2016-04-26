@@ -13,7 +13,7 @@ require_relative 'kafka_options'
 
 java_import 'ratpack.server.RatpackServer'
 java_import 'ratpack.exec.Blocking'
-java_import 'ratpack.exec.Operation'
+java_import 'ratpack.exec.Execution'
 
 $kafka_pools = {
   producer: ConnectionPool.new(size: 20, timeout: 5) { Kafka.new(KafkaOptions.default).async_producer },
@@ -53,12 +53,13 @@ RatpackServer.start do |b|
     chain.post("process") do |ctx|
       request = ctx.get_request
       request.get_body.then do |body|
-        process_messages(body.get_text)
-      end
-
-      Operation.of do
+        #messages = process_messages(body.get_text)
+        Execution.current.fork.start do
+          messages = process_messages(body.get_text)
+          deliver_messages(messages)
+        end
         ctx.get_response.status(202).send("Accepted")
-      end.then
+      end
     end
 
     chain.post("logs") do |ctx|
@@ -87,7 +88,10 @@ def process_messages(body_text)
   rescue Syslog::Parser::Error
     $stderr.puts "Could not parse: #{body_text}"
   end
+  messages
+end
 
+def deliver_messages(messages)
   $kafka_pools[:producer].with do |producer|
     producer = Kafka.new(KafkaOptions.default).async_producer
     messages.each do |message|
@@ -96,6 +100,4 @@ def process_messages(body_text)
 
     producer.deliver_messages
   end
-rescue
-  $stderr.puts $!
 end
