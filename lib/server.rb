@@ -14,7 +14,6 @@ java_import 'ratpack.server.RatpackServer'
 java_import 'ratpack.exec.Blocking'
 
 RatpackServer.start do |b|
-
   b.handlers do |chain|
     chain.get do |ctx|
       ctx.render("Hello from Ratpack JRuby")
@@ -49,25 +48,7 @@ RatpackServer.start do |b|
       message_count = request.get_headers.get("Logplex-Msg-Count")
       request.get_body.then do |body|
         puts "Logplex Message Count: #{message_count}"
-        messages = []
-        begin
-          stream = Syslog::Stream.new(
-            Syslog::Stream::OctetCountingFraming.new(StringIO.new(body.get_text)),
-            parser: Syslog::Parser.new(allow_missing_structured_data: true)
-          )
-          messages = stream.messages.to_a
-        rescue Syslog::Parser::Error
-          $stderr.puts "Could not parse: #{body.get_text}"
-        end
-
-        producer = Kafka.new(KafkaOptions.default).async_producer
-        messages.each do |message|
-          puts message
-          producer.produce(message.to_h.to_json, topic: message.procid) if message.procid == "router"
-        end
-
-        producer.deliver_messages
-        producer.shutdown
+        process_messages(body.get_text)
       end
 
       response = ctx.get_response
@@ -88,4 +69,28 @@ RatpackServer.start do |b|
       response.status(200)
     end
   end
+end
+
+def process_messages(body_text)
+  messages = []
+  begin
+    stream = Syslog::Stream.new(
+      Syslog::Stream::OctetCountingFraming.new(StringIO.new(body_text)),
+      parser: Syslog::Parser.new(allow_missing_structured_data: true)
+    )
+    messages = stream.messages.to_a
+  rescue Syslog::Parser::Error
+    $stderr.puts "Could not parse: #{body.get_text}"
+  end
+
+  producer = Kafka.new(KafkaOptions.default).async_producer
+  messages.each do |message|
+    puts message
+    producer.produce(message.to_h.to_json, topic: message.procid) if message.procid == "router"
+  end
+
+  producer.deliver_messages
+  producer.shutdown
+rescue
+  $stderr.puts $!
 end
