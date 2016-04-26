@@ -47,13 +47,12 @@ RatpackServer.start do |b|
       request = ctx.get_request
       message_count = request.get_headers.get("Logplex-Msg-Count")
       request.get_body.then do |body|
-        puts "Logplex Message Count: #{message_count}"
         process_messages(body.get_text)
-      end
 
-      response = ctx.get_response
-      response.status(202)
-      response.send("Accepted")
+        response = ctx.get_response
+        response.status(202)
+        ctx.render("Accepted")
+      end
     end
 
     chain.post("logs") do |ctx|
@@ -85,7 +84,6 @@ def process_messages(body_text)
 
   producer = Kafka.new(KafkaOptions.default).async_producer
   messages.each do |message|
-    puts message
     producer.produce(message.to_h.to_json, topic: message.procid) if message.procid == "router"
   end
 
