@@ -15,7 +15,7 @@ java_import 'ratpack.server.RatpackServer'
 java_import 'ratpack.exec.Blocking'
 
 $kafka_pools = {
-  producer: ConnectionPool.new(size: 5, timeout: 5) { Kafka.new(KafkaOptions.default).async_producer },
+  producer: ConnectionPool.new(size: 20, timeout: 5) { Kafka.new(KafkaOptions.default).async_producer },
   consumer: ConnectionPool.new(size: 5, timetou: 5) { Kafka.new(KafkaOptions.default).consumer(group_id: "ratpack") }
 }
 
