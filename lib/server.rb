@@ -13,6 +13,7 @@ require_relative 'kafka_options'
 
 java_import 'ratpack.server.RatpackServer'
 java_import 'ratpack.exec.Blocking'
+java_import 'ratpack.exec.Operation'
 
 $kafka_pools = {
   producer: ConnectionPool.new(size: 20, timeout: 5) { Kafka.new(KafkaOptions.default).async_producer },
@@ -53,11 +54,11 @@ RatpackServer.start do |b|
       request = ctx.get_request
       request.get_body.then do |body|
         process_messages(body.get_text)
-
-        response = ctx.get_response
-        response.status(202)
-        ctx.render("Accepted")
       end
+
+      Operation.of do
+        ctx.get_response.status(202).send("Accepted")
+      end.then
     end
 
     chain.post("logs") do |ctx|
