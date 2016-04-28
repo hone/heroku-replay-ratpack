@@ -24,5 +24,7 @@ class Route
 
   def method_missing(*args)
     @message[args[0]]
+  rescue
+    $stderr.puts "Missing Key: #{args[0]} is not in #{@message.inspect}"
   end
 end
