@@ -4,3 +4,4 @@ bin/
 vendor/
 .bash_history
 .m2
+spec/examples.txt
