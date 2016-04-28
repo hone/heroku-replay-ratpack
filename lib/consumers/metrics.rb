@@ -18,5 +18,5 @@ consumer.each_message do |message|
   json  = JSON.parse(message.value)
   route = Route.new(json)
   puts "Processing: #{message.offset} #{route.path}"
-  metrics.insert(route)
+  metrics.insert(route) if route.path
 end
