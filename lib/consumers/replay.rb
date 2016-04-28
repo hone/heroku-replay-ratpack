@@ -26,7 +26,7 @@ consumer.each_message do |message|
   puts "Processing: #{message.offset}, #{route.path}"
 
   controller.fork.start do
-    client.get(java.net.URI.new("#{ENV['REPLAY_HOST']}/#{route.path}")).then do |response|
+    client.get(java.net.URI.new("#{ENV['REPLAY_HOST']}#{route.path}")).then do |response|
       puts response.get_body.get_text
     end
   end
